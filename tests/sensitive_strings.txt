@@ -1,0 +1,6 @@
+SuperSecretPass123
+abc123xyz789
+MyJwtSecretKey2023
+EncryptionKey456
+token_xyz_secret_789
+admin_user

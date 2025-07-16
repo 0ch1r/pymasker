@@ -1,0 +1,38 @@
+{
+  "database": {
+    "host": "localhost",
+    "port": 5432,
+    "username": "admin_user",
+    "password": "Uxn5aViwssuQevcjrqd119",
+    "connection_string": "postgresql://admin_user:SuperSecretPassword123@localhost:5432/mydb"
+  },
+  "api": {
+    "base_url": "https://api.example.com",
+    "api_key": "vigok0h5bn4238etp650oh0115",
+    "secret_key": "sk_secret_zyx987wvu654",
+    "timeout": 30,
+    "retries": 3
+  },
+  "auth": {
+    "jwt_secret": "MyJwtSecretToken2023",
+    "encryption_key": "AES256EncryptionKey789",
+    "token_expiry": 3600
+  },
+  "external_services": [
+    {
+      "name": "payment_gateway",
+      "api_key": "bwqdaclBlwmtdrh662",
+      "secret": "8fZtojc65dmmadmer987"
+    },
+    {
+      "name": "email_service",
+      "api_key": "azfqo6laSrei148",
+      "secret": "f4tqbPxqpazeuni8jvad"
+    }
+  ],
+  "features": {
+    "debug_mode": true,
+    "log_level": "INFO",
+    "max_connections": 100
+  }
+}

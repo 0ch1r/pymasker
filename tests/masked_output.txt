@@ -1,0 +1,28 @@
+Configuration File
+==================
+
+Database Settings:
+- Host: localhost
+- Port: 27017
+- Username: 2se8jvfkwm
+- Password: P55omElonqpS5fo645
+- API_KEY: grs012unv345
+- Connection String: mongodb://2se8jvfkwm:P55omElonqpS5fo645@localhost:27017
+
+Security Configuration:
+- JWT_SECRET: DrMlaS6zk8s3at7192
+- ENCRYPTION_KEY: Kmjil36cjcWvd138
+- API_TOKEN: q2juwpnzmG1jh0u9n327
+
+Application Settings:
+- Debug Mode: true
+- Log Level: INFO
+- Session Timeout: 3600
+
+Note: The password "P55omElonqpS5fo645" should be kept confidential.
+The API_KEY "grs012unv345" is used for external service authentication.
+
+Environment Variables:
+export PASSWORD="P55omElonqpS5fo645"
+export API_KEY="grs012unv345"
+export JWT_SECRET="DrMlaS6zk8s3at7192"
