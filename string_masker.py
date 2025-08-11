@@ -25,7 +25,7 @@ import string
 import re
 import os
 import shutil
-from typing import List, Dict, Tuple, Iterator, Optional, Any, Union
+from typing import List, Dict, Tuple, Iterator, Optional, Any, Union, Set
 import logging
 from pathlib import Path
 import sys
@@ -34,6 +34,7 @@ import tempfile
 import mmap
 import json
 import copy
+import ipaddress
 
 
 class StringMasker:
@@ -67,6 +68,108 @@ class StringMasker:
         else:
             # Use cryptographically secure random
             self.random_func = secrets.choice
+    
+    def find_ip_addresses(self, text: str) -> Set[str]:
+        """
+        Find all IPv4 and IPv6 addresses in the given text.
+        
+        Args:
+            text (str): Text to scan for IP addresses
+            
+        Returns:
+            Set[str]: Set of unique IP addresses found
+        """
+        ip_addresses = set()
+        
+        # IPv4 regex pattern - matches valid IPv4 addresses (0-255 for each octet)
+        ipv4_pattern = r'\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b'
+        
+        # IPv6 regex pattern - comprehensive pattern for various IPv6 formats
+        ipv6_pattern = r'''\b(?:
+            # Standard IPv6 (8 groups of 4 hex digits)
+            (?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|
+            # IPv6 with :: compression (various positions)
+            (?:[0-9a-fA-F]{1,4}:){1,7}:|
+            (?:[0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|
+            (?:[0-9a-fA-F]{1,4}:){1,5}(?::[0-9a-fA-F]{1,4}){1,2}|
+            (?:[0-9a-fA-F]{1,4}:){1,4}(?::[0-9a-fA-F]{1,4}){1,3}|
+            (?:[0-9a-fA-F]{1,4}:){1,3}(?::[0-9a-fA-F]{1,4}){1,4}|
+            (?:[0-9a-fA-F]{1,4}:){1,2}(?::[0-9a-fA-F]{1,4}){1,5}|
+            [0-9a-fA-F]{1,4}:(?::[0-9a-fA-F]{1,4}){1,6}|
+            :(?:(?::[0-9a-fA-F]{1,4}){1,7}|:)|
+            # IPv6 with embedded IPv4
+            (?:[0-9a-fA-F]{1,4}:){6}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)|
+            ::(?:ffff(?::0{1,4})?:)?(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)|
+            (?:[0-9a-fA-F]{1,4}:){1,4}:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)
+        )\b'''
+        
+        # Find IPv4 addresses
+        ipv4_matches = re.finditer(ipv4_pattern, text)
+        for match in ipv4_matches:
+            ip = match.group()
+            # Validate the IP address using ipaddress module
+            try:
+                ipaddress.IPv4Address(ip)
+                ip_addresses.add(ip)
+            except ipaddress.AddressValueError:
+                # Skip invalid IP addresses
+                continue
+        
+        # Find IPv6 addresses
+        ipv6_matches = re.finditer(ipv6_pattern, text, re.VERBOSE | re.IGNORECASE)
+        for match in ipv6_matches:
+            ip = match.group()
+            # Validate the IP address using ipaddress module
+            try:
+                # Normalize IPv6 address (handles compression, case, etc.)
+                normalized_ip = str(ipaddress.IPv6Address(ip))
+                ip_addresses.add(ip)  # Keep original format for masking
+            except ipaddress.AddressValueError:
+                # Skip invalid IP addresses
+                continue
+        
+        return ip_addresses
+    
+    def find_ip_addresses_in_json(self, json_data: Union[str, Dict, List]) -> Set[str]:
+        """
+        Find all IP addresses in JSON data by scanning all string values.
+        
+        Args:
+            json_data (Union[str, Dict, List]): JSON data to scan
+            
+        Returns:
+            Set[str]: Set of unique IP addresses found
+        """
+        # Parse JSON if it's a string
+        if isinstance(json_data, str):
+            try:
+                parsed_data = json.loads(json_data)
+            except json.JSONDecodeError:
+                # If it's not valid JSON, treat as regular text
+                return self.find_ip_addresses(json_data)
+        else:
+            parsed_data = json_data
+        
+        ip_addresses = set()
+        
+        def scan_recursive(obj: Any) -> None:
+            """Recursively scan JSON structure for IP addresses."""
+            if isinstance(obj, dict):
+                for key, value in obj.items():
+                    # Scan key names for IPs
+                    if isinstance(key, str):
+                        ip_addresses.update(self.find_ip_addresses(key))
+                    scan_recursive(value)
+            elif isinstance(obj, list):
+                for item in obj:
+                    scan_recursive(item)
+            elif isinstance(obj, str):
+                # Scan string values for IPs
+                ip_addresses.update(self.find_ip_addresses(obj))
+            # Skip other types (numbers, booleans, null)
+        
+        scan_recursive(parsed_data)
+        return ip_addresses
     
     def _generate_random_string(self, length: int, case_pattern: str = None) -> str:
         """
@@ -724,11 +827,23 @@ Examples:
   # Text mode: Load strings from file
   python string_masker.py --file data.txt --strings-file patterns.txt
   
+  # Text mode: Automatically detect and mask IP addresses
+  python string_masker.py --file logfile.txt --filter-ips
+  
+  # Text mode: Mask strings AND IP addresses
+  python string_masker.py --file data.txt --strings "password" --filter-ips
+  
   # JSON mode: Mask values for specific keys
   python string_masker.py --json-mode --file config.json --json-keys "password" "api_key" "secret"
   
   # JSON mode: Load keys from file with compact output
   python string_masker.py --json-mode --file data.json --json-keys-file keys.txt --json-indent 0
+  
+  # JSON mode: Automatically detect and mask IP addresses only
+  python string_masker.py --json-mode --file config.json --filter-ips
+  
+  # JSON mode: Mask specific keys AND any IP addresses found
+  python string_masker.py --json-mode --file config.json --json-keys "password" --filter-ips
   
   # Case-insensitive matching with custom output
   python string_masker.py --file input.txt --strings "API_KEY" --output masked.txt --ignore-case
@@ -782,6 +897,10 @@ Examples:
     parser.add_argument('--json-indent', type=int, default=2,
                        help='JSON indentation level (default: 2, use 0 for compact)')
     
+    # IP filtering options
+    parser.add_argument('--filter-ips', action='store_true',
+                       help='Automatically detect and mask IP addresses (IPv4 and IPv6)')
+    
     # Other options
     parser.add_argument('--no-backup', action='store_true',
                        help='Do not create backup file')
@@ -796,24 +915,39 @@ Examples:
     setup_logging(args.verbose)
     
     try:
+        # Initialize masker for IP detection if needed
+        masker = StringMasker(
+            preserve_case=not args.no_preserve_case,
+            preserve_length=not args.no_preserve_length,
+            random_chars=args.random_chars,
+            seed=args.seed,
+            chunk_size=args.chunk_size
+        )
+        
         # Determine processing mode and validate arguments
         if args.json_mode:
-            # JSON mode - require JSON keys
-            if not args.json_keys and not args.json_keys_file:
-                print("Error: JSON mode requires --json-keys or --json-keys-file")
+            # JSON mode - require JSON keys or IP filtering
+            if not args.json_keys and not args.json_keys_file and not args.filter_ips:
+                print("Error: JSON mode requires --json-keys, --json-keys-file, or --filter-ips")
                 return 1
             
             # Load JSON keys
+            target_keys = []
             if args.json_keys:
                 target_keys = args.json_keys
                 # Security: Limit number of command-line keys
                 if len(target_keys) > 1000:
                     print("Error: Too many JSON keys provided (max: 1000)")
                     return 1
-            else:
+            elif args.json_keys_file:
                 target_keys = load_strings_from_file(args.json_keys_file)
             
-            if not target_keys:
+            # If IP filtering is enabled, we'll handle it differently for JSON mode
+            if args.filter_ips and not target_keys:
+                # For JSON mode with only IP filtering, we need to scan the JSON content
+                # This will be handled in the processing section
+                pass
+            elif not target_keys and not args.filter_ips:
                 print("Error: No JSON keys provided")
                 return 1
             
@@ -824,23 +958,62 @@ Examples:
                     print(f"Error: JSON key too long (max {max_key_length} chars): {key[:50]}...")
                     return 1
         else:
-            # Text mode - require strings
-            if not args.strings and not args.strings_file:
-                print("Error: Text mode requires --strings or --strings-file")
+            # Text mode - require strings or IP filtering
+            if not args.strings and not args.strings_file and not args.filter_ips:
+                print("Error: Text mode requires --strings, --strings-file, or --filter-ips")
                 return 1
             
             # Load target strings
+            target_strings = []
             if args.strings:
                 target_strings = args.strings
                 # Security: Limit number of command-line strings
                 if len(target_strings) > 1000:
                     print("Error: Too many strings provided (max: 1000)")
                     return 1
-            else:
+            elif args.strings_file:
                 target_strings = load_strings_from_file(args.strings_file)
             
+            # Add IP addresses to target strings if IP filtering is enabled
+            if args.filter_ips:
+                # Read the input file to detect IPs
+                try:
+                    input_path = Path(args.file).resolve()
+                    if not input_path.exists():
+                        print(f"Error: Input file not found: {args.file}")
+                        return 1
+                    
+                    # Read file content for IP detection
+                    try:
+                        with open(input_path, 'r', encoding='utf-8', errors='strict') as f:
+                            content = f.read()
+                    except UnicodeDecodeError:
+                        try:
+                            with open(input_path, 'r', encoding='latin-1', errors='strict') as f:
+                                content = f.read()
+                        except UnicodeDecodeError as e:
+                            print(f"Error: Unable to decode file {args.file}: {e}")
+                            return 1
+                    
+                    # Detect IP addresses
+                    detected_ips = masker.find_ip_addresses(content)
+                    if detected_ips:
+                        target_strings.extend(list(detected_ips))
+                        if args.verbose:
+                            print(f"Detected {len(detected_ips)} IP addresses: {', '.join(sorted(detected_ips))}")
+                    else:
+                        if args.verbose:
+                            print("No IP addresses detected in the input file")
+                        
+                except Exception as e:
+                    print(f"Error reading file for IP detection: {e}")
+                    return 1
+            
             if not target_strings:
-                print("Error: No target strings provided")
+                if args.filter_ips:
+                    print("No IP addresses found in the input file")
+                else:
+                    print("Error: No target strings provided")
                 return 1
             
             # Security: Validate string lengths
@@ -867,27 +1040,76 @@ Examples:
             print("Error: chunk_size must be at most 100MB")
             return 1
         
-        # Initialize masker
-        masker = StringMasker(
-            preserve_case=not args.no_preserve_case,
-            preserve_length=not args.no_preserve_length,
-            random_chars=args.random_chars,
-            seed=args.seed,
-            chunk_size=args.chunk_size
-        )
         
         # Process file based on mode
         if args.json_mode:
-            # JSON mode processing
-            indent = args.json_indent if args.json_indent > 0 else None
-            replacement_mapping = masker.mask_json_file(
-                input_file=args.file,
-                target_keys=target_keys,
-                output_file=args.output,
-                case_sensitive=not args.ignore_case,
-                create_backup=not args.no_backup,
-                indent=indent
-            )
+            if args.filter_ips and not target_keys:
+                # Special handling for JSON mode with only IP filtering
+                # Read JSON file and detect IPs, then mask the entire content as text
+                try:
+                    input_path = Path(args.file).resolve()
+                    with open(input_path, 'r', encoding='utf-8', errors='strict') as f:
+                        json_content = f.read()
+                    
+                    # Detect IPs in JSON content
+                    detected_ips = masker.find_ip_addresses_in_json(json_content)
+                    if detected_ips:
+                        detected_ips_list = list(detected_ips)
+                        if args.verbose:
+                            print(f"Detected {len(detected_ips)} IP addresses in JSON: {', '.join(sorted(detected_ips))}")
+                        
+                        # Mask the JSON content as text
+                        replacement_mapping = masker.mask_file(
+                            input_file=args.file,
+                            target_strings=detected_ips_list,
+                            output_file=args.output,
+                            case_sensitive=not args.ignore_case,
+                            create_backup=not args.no_backup
+                        )
+                    else:
+                        print("No IP addresses found in the JSON file")
+                        replacement_mapping = {}
+                except Exception as e:
+                    print(f"Error processing JSON file for IP filtering: {e}")
+                    return 1
+            else:
+                # Regular JSON mode processing
+                indent = args.json_indent if args.json_indent > 0 else None
+                replacement_mapping = masker.mask_json_file(
+                    input_file=args.file,
+                    target_keys=target_keys,
+                    output_file=args.output,
+                    case_sensitive=not args.ignore_case,
+                    create_backup=not args.no_backup,
+                    indent=indent
+                )
+                
+                # If IP filtering is also enabled with JSON keys, detect and mask IPs in the output
+                if args.filter_ips and target_keys:
+                    # After masking JSON keys, also mask any remaining IPs in the content
+                    try:
+                        output_path = Path(args.output).resolve() if args.output else Path(args.file).resolve()
+                        with open(output_path, 'r', encoding='utf-8', errors='strict') as f:
+                            masked_content = f.read()
+                        
+                        detected_ips = masker.find_ip_addresses(masked_content)
+                        if detected_ips:
+                            detected_ips_list = list(detected_ips)
+                            if args.verbose:
+                                print(f"Detected additional {len(detected_ips)} IP addresses: {', '.join(sorted(detected_ips))}")
+                            
+                            # Mask IPs in the already processed file
+                            additional_mapping = masker.mask_file(
+                                input_file=str(output_path),
+                                target_strings=detected_ips_list,
+                                output_file=str(output_path),
+                                case_sensitive=not args.ignore_case,
+                                create_backup=False  # Already backed up
+                            )
+                            replacement_mapping.update(additional_mapping)
+                    except Exception as e:
+                        if args.verbose:
+                            print(f"Warning: Could not perform additional IP filtering: {e}")
         else:
             # Text mode processing
             replacement_mapping = masker.mask_file(

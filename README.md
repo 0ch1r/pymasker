@@ -31,6 +31,7 @@ PyMasker is a powerful, security-focused Python tool designed to mask sensitive 
 ### 🛠 **Flexible Configuration**
 - **Multiple input methods** - Command line args or file-based patterns
 - **JSON and text modes** - Specialized processing for JSON data structures
+- **Automatic IP detection** - Built-in IPv4 and IPv6 address masking with `--filter-ips`
 - **Customizable character sets** for replacement generation
 - **Case-sensitive/insensitive** matching options
 - **Reproducible results** with optional seeding (for testing)
@@ -55,8 +56,17 @@ python3 string_masker.py --file data.txt --strings-file sensitive_strings.txt
 # Save to a different output file
 python3 string_masker.py --file input.txt --strings "token" --output masked_output.txt
 
+# Automatically detect and mask IP addresses
+python3 string_masker.py --file logfile.txt --filter-ips
+
+# Combine string masking with automatic IP detection
+python3 string_masker.py --file data.txt --strings "password" "token" --filter-ips
+
 # JSON mode - mask values by key names
 python3 string_masker.py --json-mode --file config.json --json-keys "password" "api_key" "secret"
+
+# JSON mode with automatic IP detection
+python3 string_masker.py --json-mode --file config.json --filter-ips
 
 # JSON keys from file with case-insensitive matching
 python3 string_masker.py --json-mode --file config.json --json-keys-file sensitive_keys.txt --ignore-case
@@ -222,6 +232,84 @@ python3 string_masker.py --file app.log --strings "john_doe" "admin_user" "sk_li
 2023-01-01 10:02:00 [DEBUG] API call with token: qR_lMnO_pQrStUv
 ```
 
+### Example 4: Automatic IP Address Detection
+
+**Input file (`server.log`):**
+```
+2024-01-15 10:30:00 - Server started on 192.168.1.100
+2024-01-15 10:30:05 - Client connected from 203.0.113.50
+2024-01-15 10:30:10 - Database at 10.0.0.25 is responding
+2024-01-15 10:30:15 - Load balancer 198.51.100.1 active
+2024-01-15 10:30:20 - IPv6 endpoint 2001:db8::1 healthy
+2024-01-15 10:30:25 - Cache server at 172.16.0.100 ready
+```
+
+**Command:**
+```bash
+python3 string_masker.py --file server.log --filter-ips --verbose
+```
+
+**Output:**
+```
+2024-01-15 10:30:00 - Server started on 847k562o9h834
+2024-01-15 10:30:05 - Client connected from 692b7y395428
+2024-01-15 10:30:10 - Database at 68w2i4S81 is responding
+2024-01-15 10:30:15 - Load balancer 294Z18b942K3 active
+2024-01-15 10:30:20 - IPv6 endpoint 8473tgh2qC1 healthy
+2024-01-15 10:30:25 - Cache server at 246g523P8k639 ready
+```
+
+*Detected and masked: 6 IP addresses (IPv4: 192.168.1.100, 203.0.113.50, 10.0.0.25, 198.51.100.1, 172.16.0.100; IPv6: 2001:db8::1)*
+
+### Example 5: JSON Configuration with IP Detection
+
+**Input file (`network_config.json`):**
+```json
+{
+  "database": {
+    "host": "192.168.1.100",
+    "password": "secret_db_pass",
+    "port": 5432
+  },
+  "web_servers": [
+    {
+      "name": "web1",
+      "ip": "203.0.113.10",
+      "api_key": "sk_live_abc123"
+    }
+  ],
+  "load_balancer": "198.51.100.1",
+  "dns_servers": ["8.8.8.8", "1.1.1.1"]
+}
+```
+
+**Command:**
+```bash
+python3 string_masker.py --json-mode --file network_config.json --json-keys "password" "api_key" --filter-ips
+```
+
+**Output:**
+```json
+{
+  "database": {
+    "host": "847k562o9h834",
+    "password": "RmPqSsTuVwXyZ1234",
+    "port": 5432
+  },
+  "web_servers": [
+    {
+      "name": "web1",
+      "ip": "692b7y395428",
+      "api_key": "qR_lMnO_pQrStU"
+    }
+  ],
+  "load_balancer": "294Z18b942K3",
+  "dns_servers": ["68w2i4S81", "5h821D3"]
+}
+```
+
+*Both JSON keys (password, api_key) and all IP addresses were automatically detected and masked*
+
 ### Example 3: Programmatic Usage
 
 ```python
@@ -286,6 +374,7 @@ mapping = masker.mask_json_file(
 | `--random-chars` | | Characters for random generation | `a-zA-Z0-9` |
 | `--seed` | | Random seed for reproducible results | None |
 | `--chunk-size` | | Chunk size for large files (bytes) | 1048576 (1MB) |
+| `--filter-ips` | | Automatically detect and mask IP addresses (IPv4/IPv6) | False |
 | `--no-backup` | | Don't create backup files | False |
 | `--verbose` | `-v` | Verbose output | False |
 | `--show-mapping` | | Show replacement mapping | False |
@@ -346,6 +435,12 @@ class StringMasker:
 #### Key Methods
 
 ```python
+def find_ip_addresses(self, text: str) -> Set[str]:
+    """Find all IPv4 and IPv6 addresses in the given text."""
+
+def find_ip_addresses_in_json(self, json_data) -> Set[str]:
+    """Find all IP addresses in JSON data by scanning all string values."""
+
 def mask_strings_in_text(self, text: str, target_strings: List[str], 
                         case_sensitive: bool = True) -> Tuple[str, Dict[str, str]]:
     """Mask target strings in the given text."""
@@ -486,7 +581,15 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🔄 Version History
 
-### v2.1.0 (Latest)
+### v2.2.0 (Latest)
+- 🌐 **NEW**: Automatic IP address detection and masking with `--filter-ips`
+- 📡 IPv4 and IPv6 address support with comprehensive regex patterns
+- 🔍 IP validation using Python's `ipaddress` module for accuracy
+- 🎯 Works in both text and JSON modes, standalone or combined with other filters
+- 📋 Recursive IP scanning in nested JSON structures
+- 🧪 Enhanced examples and documentation for IP masking workflows
+
+### v2.1.0
 - 🔑 **NEW**: JSON processing mode with key-based masking
 - 📝 JSON structure preservation and formatting control
 - 🎯 Nested object and array support for JSON data

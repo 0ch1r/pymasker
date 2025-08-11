@@ -1,0 +1,28 @@
+{
+  "database": {
+    "host": "706a718r3n011",
+    "backup_host": "20q0W0474",
+    "port": 5432
+  },
+  "web_servers": [
+    {
+      "name": "web1",
+      "ip": "507D7V350O49",
+      "ipv6": "29776ak0i33l2388a2e:370:7334"
+    },
+    {
+      "name": "web2", 
+      "ip": "933w5v934q96",
+      "ipv6": "29776ak0i33l2388a2e:370:7335"
+    }
+  ],
+  "load_balancer": {
+    "primary": "839N717000N6",
+    "secondary": "091e03K000A5"
+  },
+  "dns_servers": ["9Z5I4B6", "4P5t952"],
+  "monitoring": {
+    "endpoint": "https://monitor.example.com/api",
+    "local_ip": "03644i3Z1"
+  }
+}

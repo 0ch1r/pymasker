@@ -1,0 +1,28 @@
+{
+  "database": {
+    "host": "192.168.1.100",
+    "backup_host": "10.0.0.50",
+    "port": 5432
+  },
+  "web_servers": [
+    {
+      "name": "web1",
+      "ip": "203.0.113.10",
+      "ipv6": "2001:db8:85a3::8a2e:370:7334"
+    },
+    {
+      "name": "web2", 
+      "ip": "203.0.113.11",
+      "ipv6": "2001:db8:85a3::8a2e:370:7335"
+    }
+  ],
+  "load_balancer": {
+    "primary": "198.51.100.1",
+    "secondary": "198.51.100.2"
+  },
+  "dns_servers": ["8.8.8.8", "1.1.1.1"],
+  "monitoring": {
+    "endpoint": "https://monitor.example.com/api",
+    "local_ip": "127.0.0.1"
+  }
+}

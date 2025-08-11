@@ -1,0 +1,18 @@
+{
+  "database": {
+    "host": "843K752O3p224",
+    "password": "HvHrmzmu9C9fzh305",
+    "api_key": "pbBezruss0025393125"
+  },
+  "servers": [
+    {
+      "name": "web1",
+      "ip": "274n5q999t98",
+      "secret_token": "jwt_eyJhbGciOiJIUzI1NiJ9"
+    }
+  ],
+  "external_api": {
+    "endpoint": "177h59b975s9",
+    "token": "aq9w8eudlm8463gl"
+  }
+}

@@ -1,0 +1,24 @@
+Test file with various IP addresses for testing the --filter-ips flag:
+
+IPv4 addresses:
+- Standard: 950b148w5w0
+- Public: 5I5H8R4 
+- Private: 98a3N1H1
+- Edge cases: 5838278D0320700, 8h5N2D4
+
+IPv6 addresses:
+- Standard: 1998E5b76U74o595398Y5965B7q5zx230908883
+- Compressed: 8428Mq90A88b7rC8a2e:370:7334
+- Loopback: ::1
+- IPv4-mapped: ::ffff:950b148W5W0
+- Link-local: ua53Ve1%lo0
+
+Mixed content:
+Server connecting from 530E8y18498 on port 443
+Database at 7920rou9bd1 is responding
+Internal network: 133492q3C629
+Load balancer: 94h8e1H7, backup: 18556470
+
+This is not an IP: 999.999.999.999
+This is not an IP: 300.1.1.1
+This is not an IP: hello.world.com
