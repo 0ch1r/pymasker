@@ -1,0 +1,61 @@
+{
+  "infrastructure": {
+    "name": "Production Network",
+    "version": "2.1.0",
+    "database": {
+      "primary_host": "192.168.1.100",
+      "secondary_host": "192.168.1.101",
+      "port": 5432,
+      "credentials": {
+        "username": "db_admin",
+        "password": "ultra_secret_db_password_123"
+      }
+    },
+    "web_servers": [
+      {
+        "name": "web1",
+        "ipv4": "203.0.113.10",
+        "ipv6": "2001:db8:85a3::8a2e:370:7334",
+        "api_key": "sk_prod_web1_xyz123"
+      },
+      {
+        "name": "web2", 
+        "ipv4": "203.0.113.11",
+        "ipv6": "2001:db8:85a3::8a2e:370:7335",
+        "api_key": "sk_prod_web2_abc456"
+      }
+    ],
+    "load_balancer": {
+      "primary": "198.51.100.1",
+      "secondary": "198.51.100.2",
+      "virtual_ip": "198.51.100.10"
+    },
+    "dns_servers": ["8.8.8.8", "1.1.1.1", "208.67.222.222"],
+    "monitoring": {
+      "endpoint": "https://monitor.example.com/api",
+      "local_collector": "127.0.0.1",
+      "remote_collectors": [
+        "10.0.0.50",
+        "172.16.1.200"
+      ]
+    },
+    "network_ranges": {
+      "internal": "192.168.0.0/16",
+      "dmz": "203.0.113.0/24", 
+      "management": "10.0.0.0/8"
+    }
+  },
+  "security": {
+    "firewall_rules": [
+      {
+        "source": "192.168.1.0/24",
+        "destination": "203.0.113.0/24",
+        "ports": [80, 443]
+      }
+    ],
+    "vpn_endpoints": [
+      "198.51.100.50",
+      "2001:db8:vpn::1"
+    ]
+  }
+}

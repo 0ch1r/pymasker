@@ -41,8 +41,7 @@ class StringMasker:
     """Advanced string masking utility with formatting preservation."""
     
     def __init__(self, preserve_case=True, preserve_length=True, 
-                 random_chars=None, seed=None, chunk_size=1024*1024,
-                 ipv4_subnet="172.16.0.0/16", ipv6_subnet="fd00::/64"):
+                 random_chars=None, seed=None, chunk_size=1024*1024):
         """
         Initialize the StringMasker.
         
@@ -52,18 +51,12 @@ class StringMasker:
             random_chars (str): Characters to use for random generation
             seed (int): Random seed for reproducible results
             chunk_size (int): Size of chunks for processing large files
-            ipv4_subnet (str): IPv4 subnet to use for IP address replacements
-            ipv6_subnet (str): IPv6 subnet to use for IP address replacements
         """
         self.preserve_case = preserve_case
         self.preserve_length = preserve_length
         self.random_chars = random_chars or string.ascii_letters + string.digits
         self.replacement_cache = {}
         self.chunk_size = chunk_size
-        
-        # IP subnet configurations
-        self.ipv4_network = ipaddress.IPv4Network(ipv4_subnet, strict=False)
-        self.ipv6_network = ipaddress.IPv6Network(ipv6_subnet, strict=False)
         
         # Use cryptographically secure random by default
         self.use_secure_random = seed is None
@@ -72,11 +65,9 @@ class StringMasker:
             import random
             random.seed(seed)
             self.random_func = random.choice
-            self.randint_func = random.randint
         else:
             # Use cryptographically secure random
             self.random_func = secrets.choice
-            self.randint_func = lambda a, b: secrets.randbelow(b - a + 1) + a
     
     def find_ip_addresses(self, text: str) -> Set[str]:
         """
@@ -221,108 +212,6 @@ class StringMasker:
         else:
             return ''.join(self.random_func(self.random_chars) for _ in range(length))
     
-
-    def _is_ip_address(self, text: str) -> Union[str, None]:
-        """
-        Check if a string is a valid IP address and return its type.
-        
-        Args:
-            text (str): String to check
-            
-        Returns:
-            Union[str, None]: 'ipv4', 'ipv6', or None if not an IP address
-        """
-        try:
-            ipaddress.IPv4Address(text)
-            return 'ipv4'
-        except ipaddress.AddressValueError:
-            pass
-        
-        try:
-            ipaddress.IPv6Address(text)
-            return 'ipv6'
-        except ipaddress.AddressValueError:
-            pass
-        
-        return None
-    
-    def _generate_ipv4_replacement(self) -> str:
-        """
-        Generate a random IPv4 address within the configured subnet.
-        
-        Returns:
-            str: Random IPv4 address as string
-        """
-        # Get all possible host addresses in the network
-        hosts = list(self.ipv4_network.hosts())
-        if not hosts:
-            # If no hosts (e.g., /32), use the network address
-            return str(self.ipv4_network.network_address)
-        
-        # Select a random host
-        random_host = hosts[self.randint_func(0, len(hosts) - 1)]
-        return str(random_host)
-    
-    def _generate_ipv6_replacement(self) -> str:
-        """
-        Generate a random IPv6 address within the configured subnet.
-        
-        Returns:
-            str: Random IPv6 address as string
-        """
-        # Generate random host part within the network
-        network = self.ipv6_network
-        
-        # Get the network address as an integer
-        network_int = int(network.network_address)
-        
-        # Calculate the host part size
-        host_bits = 128 - network.prefixlen
-        
-        # Generate random host identifier
-        if host_bits > 64:
-            # For large subnets, limit randomness to avoid huge numbers
-            host_part = self.randint_func(1, min(2**host_bits - 2, 2**32 - 1))
-        elif host_bits > 0:
-            host_part = self.randint_func(1, 2**host_bits - 2)
-        else:
-            # /128 subnet, use the network address
-            return str(network.network_address)
-        
-        # Combine network and host parts
-        ip_int = network_int + host_part
-        return str(ipaddress.IPv6Address(ip_int))
-    
-    def _get_ip_replacement(self, original: str, ip_type: str) -> str:
-        """
-        Get a replacement IP address for the original.
-        
-        Args:
-            original (str): Original IP address
-            ip_type (str): Type of IP ('ipv4' or 'ipv6')
-            
-        Returns:
-            str: Replacement IP address
-        """
-        # Use original IP as cache key for consistent replacements
-        cache_key = f"ip:{original.lower()}"
-        
-        if cache_key in self.replacement_cache:
-            return self.replacement_cache[cache_key]
-        
-        # Generate appropriate replacement
-        if ip_type == 'ipv4':
-            replacement = self._generate_ipv4_replacement()
-        elif ip_type == 'ipv6':
-            replacement = self._generate_ipv6_replacement()
-        else:
-            # Fallback to original behavior
-            replacement = self._generate_random_string(len(original), original)
-        
-        # Cache the replacement
-        self.replacement_cache[cache_key] = replacement
-        return replacement
-
     def _get_replacement(self, original: str) -> str:
         """
         Get or generate a replacement string for the original.
@@ -334,11 +223,6 @@ class StringMasker:
         Returns:
             str: Replacement string
         """
-        # Check if this is an IP address first
-        ip_type = self._is_ip_address(original)
-        if ip_type:
-            return self._get_ip_replacement(original, ip_type)
-        
         # Use lowercase for cache key to handle case-insensitive matching
         cache_key = original.lower()
         
@@ -943,14 +827,11 @@ Examples:
   # Text mode: Load strings from file
   python string_masker.py --file data.txt --strings-file patterns.txt
   
-  # Text mode: Automatically detect and mask IP addresses (uses private subnets)
+  # Text mode: Automatically detect and mask IP addresses
   python string_masker.py --file logfile.txt --filter-ips
   
-  # Text mode: Mask strings AND IP addresses with custom IPv4 subnet
-  python string_masker.py --file data.txt --strings "password" --filter-ips --ipv4-subnet "10.20.0.0/24"
-  
-  # Text mode: Custom IP subnets for both IPv4 and IPv6
-  python string_masker.py --file network_logs.txt --filter-ips --ipv4-subnet "192.168.100.0/24" --ipv6-subnet "fc00::/64"
+  # Text mode: Mask strings AND IP addresses
+  python string_masker.py --file data.txt --strings "password" --filter-ips
   
   # JSON mode: Mask values for specific keys
   python string_masker.py --json-mode --file config.json --json-keys "password" "api_key" "secret"
@@ -1019,10 +900,6 @@ Examples:
     # IP filtering options
     parser.add_argument('--filter-ips', action='store_true',
                        help='Automatically detect and mask IP addresses (IPv4 and IPv6)')
-    parser.add_argument('--ipv4-subnet', default='172.16.0.0/16',
-                       help='IPv4 subnet for IP address replacements (default: 172.16.0.0/16)')
-    parser.add_argument('--ipv6-subnet', default='fd00::/64',
-                       help='IPv6 subnet for IP address replacements (default: fd00::/64)')
     
     # Other options
     parser.add_argument('--no-backup', action='store_true',
@@ -1044,9 +921,7 @@ Examples:
             preserve_length=not args.no_preserve_length,
             random_chars=args.random_chars,
             seed=args.seed,
-            chunk_size=args.chunk_size,
-            ipv4_subnet=args.ipv4_subnet,
-            ipv6_subnet=args.ipv6_subnet
+            chunk_size=args.chunk_size
         )
         
         # Determine processing mode and validate arguments

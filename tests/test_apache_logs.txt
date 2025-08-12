@@ -1,0 +1,17 @@
+# Apache Access Log Sample with IP Addresses
+192.168.1.50 - - [12/Aug/2024:10:00:01 +0000] "GET /index.html HTTP/1.1" 200 2326 "-" "Mozilla/5.0"
+203.0.113.25 - - [12/Aug/2024:10:00:02 +0000] "POST /api/login HTTP/1.1" 200 1234 "-" "curl/7.68.0"
+10.0.0.75 - - [12/Aug/2024:10:00:03 +0000] "GET /assets/style.css HTTP/1.1" 304 0 "http://example.com/" "Chrome/91.0"
+198.51.100.100 - - [12/Aug/2024:10:00:04 +0000] "GET /admin/dashboard HTTP/1.1" 403 1523 "-" "Safari/14.0"
+2001:db8:85a3::8a2e:0370:7334 - - [12/Aug/2024:10:00:05 +0000] "GET /api/data HTTP/1.1" 200 5678 "-" "Python/3.9"
+127.0.0.1 - - [12/Aug/2024:10:00:06 +0000] "GET /health HTTP/1.1" 200 12 "-" "curl/7.68.0"
+172.16.10.25 - - [12/Aug/2024:10:00:07 +0000] "DELETE /api/cache HTTP/1.1" 204 0 "-" "PostmanRuntime/7.26"
+8.8.8.8 - - [12/Aug/2024:10:00:08 +0000] "GET /robots.txt HTTP/1.1" 404 1234 "-" "Googlebot/2.1"
+fe80::1%lo0 - - [12/Aug/2024:10:00:09 +0000] "GET /local-service HTTP/1.1" 200 890 "-" "Internal/1.0"
+::1 - - [12/Aug/2024:10:00:10 +0000] "GET /localhost-test HTTP/1.1" 200 456 "-" "TestClient/1.0"
+
+# Error log entries
+[Mon Aug 12 10:00:11 2024] [error] [client 192.168.1.75] File does not exist: /var/www/missing.html
+[Mon Aug 12 10:00:12 2024] [warn] [client 203.0.113.99] Invalid authorization from client
+[Mon Aug 12 10:00:13 2024] [error] [client 2001:db8::dead:beef] Connection timeout
+[Mon Aug 12 10:00:14 2024] [info] Server restarted on 10.1.1.10:80

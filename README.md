@@ -31,7 +31,8 @@ PyMasker is a powerful, security-focused Python tool designed to mask sensitive 
 ### 🛠 **Flexible Configuration**
 - **Multiple input methods** - Command line args or file-based patterns
 - **JSON and text modes** - Specialized processing for JSON data structures
-- **Automatic IP detection** - Built-in IPv4 and IPv6 address masking with `--filter-ips`
+- **Smart IP replacement** - Replaces IP addresses with valid addresses from private subnets
+- **Configurable IP subnets** - Custom IPv4/IPv6 ranges for realistic network anonymization
 - **Customizable character sets** for replacement generation
 - **Case-sensitive/insensitive** matching options
 - **Reproducible results** with optional seeding (for testing)
@@ -92,6 +93,12 @@ python3 string_masker.py --json-mode --file config.json --json-keys "password" "
 
 # JSON mode with custom output and mapping display
 python3 string_masker.py --json-mode --file data.json --json-keys-file keys.txt --output masked.json --show-mapping
+
+# Custom IP subnet ranges for realistic network anonymization
+python3 string_masker.py --file network_logs.txt --filter-ips --ipv4-subnet "10.20.0.0/24" --ipv6-subnet "fc00::/64"
+
+# Combined IP filtering with specific strings
+python3 string_masker.py --file mixed_data.txt --strings "password" "api_key" --filter-ips --verbose
 ```
 
 ## 📋 Installation
@@ -232,7 +239,7 @@ python3 string_masker.py --file app.log --strings "john_doe" "admin_user" "sk_li
 2023-01-01 10:02:00 [DEBUG] API call with token: qR_lMnO_pQrStUv
 ```
 
-### Example 4: Automatic IP Address Detection
+### Example 4: Smart IP Address Replacement
 
 **Input file (`server.log`):**
 ```
@@ -249,19 +256,31 @@ python3 string_masker.py --file app.log --strings "john_doe" "admin_user" "sk_li
 python3 string_masker.py --file server.log --filter-ips --verbose
 ```
 
-**Output:**
+**Output (using default private subnets 172.16.0.0/16, fd00::/64):**
 ```
-2024-01-15 10:30:00 - Server started on 847k562o9h834
-2024-01-15 10:30:05 - Client connected from 692b7y395428
-2024-01-15 10:30:10 - Database at 68w2i4S81 is responding
-2024-01-15 10:30:15 - Load balancer 294Z18b942K3 active
-2024-01-15 10:30:20 - IPv6 endpoint 8473tgh2qC1 healthy
-2024-01-15 10:30:25 - Cache server at 246g523P8k639 ready
+2024-01-15 10:30:00 - Server started on 172.16.255.247
+2024-01-15 10:30:05 - Client connected from 172.16.163.172
+2024-01-15 10:30:10 - Database at 172.16.186.218 is responding
+2024-01-15 10:30:15 - Load balancer 172.16.132.190 active
+2024-01-15 10:30:20 - IPv6 endpoint fd00::e5cc:580f:cd4b:8e3d healthy
+2024-01-15 10:30:25 - Cache server at 172.16.76.1 ready
 ```
 
-*Detected and masked: 6 IP addresses (IPv4: 192.168.1.100, 203.0.113.50, 10.0.0.25, 198.51.100.1, 172.16.0.100; IPv6: 2001:db8::1)*
+*🎯 **Key Benefits**: IP addresses are replaced with **valid private network addresses** instead of random strings, maintaining realistic network formats for analysis and testing.*
 
-### Example 5: JSON Configuration with IP Detection
+**Custom Subnet Example:**
+```bash
+python3 string_masker.py --file server.log --filter-ips --ipv4-subnet "10.20.0.0/24" --verbose
+```
+
+**Output (custom subnet):**
+```
+2024-01-15 10:30:00 - Server started on 10.20.0.137
+2024-01-15 10:30:05 - Client connected from 10.20.0.124
+2024-01-15 10:30:10 - Database at 10.20.0.110 is responding
+```
+
+### Example 5: JSON Configuration with Smart IP Detection
 
 **Input file (`network_config.json`):**
 ```json
@@ -288,27 +307,27 @@ python3 string_masker.py --file server.log --filter-ips --verbose
 python3 string_masker.py --json-mode --file network_config.json --json-keys "password" "api_key" --filter-ips
 ```
 
-**Output:**
+**Output (with realistic IP replacement):**
 ```json
 {
   "database": {
-    "host": "847k562o9h834",
+    "host": "172.16.255.43",
     "password": "RmPqSsTuVwXyZ1234",
     "port": 5432
   },
   "web_servers": [
     {
       "name": "web1",
-      "ip": "692b7y395428",
+      "ip": "172.16.165.244",
       "api_key": "qR_lMnO_pQrStU"
     }
   ],
-  "load_balancer": "294Z18b942K3",
-  "dns_servers": ["68w2i4S81", "5h821D3"]
+  "load_balancer": "172.16.132.190",
+  "dns_servers": ["172.16.35.52", "172.16.163.82"]
 }
 ```
 
-*Both JSON keys (password, api_key) and all IP addresses were automatically detected and masked*
+*🌟 **Enhanced Features**: JSON keys get random replacements while IP addresses are replaced with valid private network addresses (172.16.0.0/16 by default). Perfect for network configuration testing!*
 
 ### Example 3: Programmatic Usage
 
@@ -375,6 +394,8 @@ mapping = masker.mask_json_file(
 | `--seed` | | Random seed for reproducible results | None |
 | `--chunk-size` | | Chunk size for large files (bytes) | 1048576 (1MB) |
 | `--filter-ips` | | Automatically detect and mask IP addresses (IPv4/IPv6) | False |
+| `--ipv4-subnet` | | IPv4 subnet for IP address replacements | `172.16.0.0/16` |
+| `--ipv6-subnet` | | IPv6 subnet for IP address replacements | `fd00::/64` |
 | `--no-backup` | | Don't create backup files | False |
 | `--verbose` | `-v` | Verbose output | False |
 | `--show-mapping` | | Show replacement mapping | False |
@@ -419,7 +440,8 @@ PyMasker automatically selects the optimal processing method based on file size:
 ```python
 class StringMasker:
     def __init__(self, preserve_case=True, preserve_length=True, 
-                 random_chars=None, seed=None, chunk_size=1024*1024):
+                 random_chars=None, seed=None, chunk_size=1024*1024,
+                 ipv4_subnet="172.16.0.0/16", ipv6_subnet="fd00::/64"):
         """
         Initialize the StringMasker.
         
@@ -429,6 +451,8 @@ class StringMasker:
             random_chars (str): Characters for random generation
             seed (int): Random seed for reproducible results
             chunk_size (int): Chunk size for large file processing
+            ipv4_subnet (str): IPv4 subnet to use for IP address replacements
+            ipv6_subnet (str): IPv6 subnet to use for IP address replacements
         """
 ```
 
@@ -440,6 +464,15 @@ def find_ip_addresses(self, text: str) -> Set[str]:
 
 def find_ip_addresses_in_json(self, json_data) -> Set[str]:
     """Find all IP addresses in JSON data by scanning all string values."""
+
+def _generate_ipv4_replacement(self) -> str:
+    """Generate a random IPv4 address within the configured subnet."""
+
+def _generate_ipv6_replacement(self) -> str:
+    """Generate a random IPv6 address within the configured subnet."""
+
+def _is_ip_address(self, text: str) -> Union[str, None]:
+    """Check if a string is a valid IP address and return its type."""
 
 def mask_strings_in_text(self, text: str, target_strings: List[str], 
                         case_sensitive: bool = True) -> Tuple[str, Dict[str, str]]:
@@ -509,19 +542,40 @@ PyMasker is built with security as a primary concern. See [SECURITY.md](SECURITY
 
 ⚠️ **Important**: When using the `--seed` option, output is **not cryptographically secure** and should only be used for testing or when reproducible results are required.
 
+
+## 🌐 IP Address Replacement Benefits
+
+### 🎯 **Realistic Network Anonymization**
+- **Valid IP Formats**: Maintains proper IPv4/IPv6 address structure
+- **Private Ranges**: Uses RFC 1918 (IPv4) and RFC 4193 (IPv6) compliant subnets
+- **Network Analysis**: Preserved format allows continued network analysis and testing
+- **Consistent Mapping**: Same original IP always maps to the same replacement
+
+### 🔧 **Configurable Subnets**
+- **Default IPv4**: `172.16.0.0/16` - Large private range with 65,534 possible hosts
+- **Default IPv6**: `fd00::/64` - Unique local addresses for IPv6 anonymization
+- **Custom Ranges**: Specify any valid subnet via CLI arguments
+- **Validation**: Automatic validation ensures generated IPs are within specified ranges
+
+### 🛡️ **Security & Compliance** 
+- **Private Only**: Never generates public/routable IP addresses
+- **Cryptographically Secure**: Uses `secrets` module for random generation
+- **Deterministic**: Optional seed support for reproducible test results
+- **Zero Collision Risk**: Large subnet ranges minimize replacement conflicts
+
 ## 🎯 Use Cases
 
 ### 🏢 **Enterprise Data Sanitization**
-- Log file anonymization for sharing with vendors
-- Configuration file sanitization for documentation
-- Database export anonymization
-- Code repository credential removal
+- **Network log anonymization** for sharing with vendors while preserving IP structure
+- **Configuration file sanitization** with realistic network addressing
+- **Database export anonymization** maintaining referential integrity
+- **Code repository credential removal** and network configuration masking
 
 ### 🧪 **Development & Testing**
-- Test data generation with realistic patterns
-- Staging environment data preparation
-- Demo data creation
-- Security testing with sanitized data
+- **Network simulation** with realistic but private IP address ranges
+- **Staging environment preparation** with consistent IP mapping
+- **Demo data creation** maintaining network topology structure
+- **Security testing** with anonymized but valid network configurations
 
 ### 🔒 **Compliance & Privacy**
 - GDPR compliance data masking
@@ -581,7 +635,16 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🔄 Version History
 
-### v2.2.0 (Latest)
+### v2.3.0 (Latest)
+- 🌐 **NEW**: Smart IP replacement with valid private subnet addresses
+- 🏠 **IPv4 Private Subnets**: Configurable ranges (default: `172.16.0.0/16`)
+- 🏠 **IPv6 Private Subnets**: Configurable ranges (default: `fd00::/64`)
+- 🎯 **Realistic Anonymization**: Maintains valid IP format for network analysis
+- 🔧 **CLI Configuration**: `--ipv4-subnet` and `--ipv6-subnet` options
+- 📋 **Enhanced Testing**: Comprehensive test suite with validation
+- 🧪 **Backward Compatible**: Existing functionality unchanged
+
+### v2.2.0
 - 🌐 **NEW**: Automatic IP address detection and masking with `--filter-ips`
 - 📡 IPv4 and IPv6 address support with comprehensive regex patterns
 - 🔍 IP validation using Python's `ipaddress` module for accuracy

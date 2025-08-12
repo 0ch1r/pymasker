@@ -1,0 +1,29 @@
+Network Infrastructure Log - Test File for IP Address Masking
+
+2024-08-12 10:00:00 - Server started on 172.16.35.156
+2024-08-12 10:00:05 - Client connected from 172.16.233.178 on port 443
+2024-08-12 10:00:10 - Database server at 172.16.135.27 is responding
+2024-08-12 10:00:15 - Load balancer 172.16.132.190 is active
+2024-08-12 10:00:20 - IPv6 endpoint fd00::3752:8cb3:c236:999b1 is healthy  
+2024-08-12 10:00:25 - Cache server at 172.16.76.1 is ready
+2024-08-12 10:00:30 - DNS server 172.16.35.52 responding normally
+2024-08-12 10:00:35 - Backup DNS 172.16.163.82 also responding
+2024-08-12 10:00:40 - IPv6 client fd00::29db:c48:d692:6a518a2e:0370:7334 connected
+2024-08-12 10:00:45 - Internal service 172.16.245.211 processing requests
+2024-08-12 10:00:50 - Gateway 172.16.146.94 forwarding traffic
+2024-08-12 10:00:55 - DMZ server 172.16.110.1 secured
+2024-08-12 10:01:00 - IPv6 service fd00::7d2a:549:dad3:91401%lo0 local only
+2024-08-12 10:01:05 - Monitoring endpoint ::1 (localhost) active
+
+Mixed content with non-IP data:
+- Password: secret123
+- API Token: sk_live_abc123xyz789
+- Configuration at 172.16.85.155:8080
+- Remote endpoint https://api.example.com (no IP here)
+- SSH key: ssh-rsa AAAAB3NzaC1yc2E...
+
+Edge cases:
+- Invalid IP: 999.999.999.999 (should not be detected)
+- Invalid IP: 300.1.1.1 (should not be detected)  
+- Domain: server.example.com (should not be masked as IP)
+- Port only: :8080 (should not be masked)
